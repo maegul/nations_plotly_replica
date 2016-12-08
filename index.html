@@ -1,0 +1,298 @@
+<head>
+
+	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+
+<style type="text/css">
+
+body {
+	display: flex;
+	flex-direction: column;
+}
+
+.pane {
+	height: 50%;
+	display: flex;
+	flex-direction:row;
+}
+
+.plot {
+/*	height: 50%;
+*/	width: 85%;
+}
+
+</style>
+
+</head>
+
+
+
+<body>
+
+<div class='pane'>
+
+<div class='plot' id='graph' style='width: 100%'></div>
+
+
+<!-- <div class='cont_inner'>
+  <p class='cont_desc'>Year</p>
+  <input style='width:100%;' type="range" name="range" class="slider" id="year_slider" value="2008" min="1950" max="2008" step="1" >
+  <p id="year_text"></p>
+</div>
+ -->
+</div>
+
+
+<div class='pane'>
+
+<div class='plot' id='graph_two'></div>
+
+<div class='cont_inner'>
+  <p class='cont_desc'>Year</p>
+  <input style='width:100%;' type="range" name="range" class="slider" id="year_slider" value="2008" min="1950" max="2008" step="1" >
+  <p id="year_text"></p>
+
+  <button style='height: 10%;' id='clear_butt'>Clear Plot</button>
+
+</div>
+
+
+</div>
+
+
+
+<script type="text/javascript">
+
+var d3 = Plotly.d3;
+
+
+
+d3.json('nations.json', function(data){
+	console.log(data);
+
+
+// Generates list of unique regions due to d3 key function 
+	var regions = d3.map(data, function(d) {return d.region;}).keys();
+
+
+
+
+	var year = parseInt(2008 - 1950);
+
+
+	var traces = []
+
+
+	for (reg in regions) {
+
+		var reg_data = data.filter(function(nation){
+			return nation.region == regions[reg];
+		})
+
+		traces.push({
+			name: regions[reg],
+
+			x: reg_data.map(function(nation){
+				return nation.income[year];;
+			}),
+
+			y: reg_data.map(function(nation){
+				return nation.lifeExpectancy[year];
+			}),
+
+			text: reg_data.map(function(nation){
+				return nation.name;
+			}),
+
+			mode: 'markers',
+
+			marker: {
+				size: reg_data.map(function(nation){
+					return nation.population[year];
+				}),
+				sizemode: 'area',
+				sizeref: 4e5
+			},
+
+			rand_num: Math.random()
+
+
+		})
+	}
+
+
+	var layout = {
+		xaxis: {
+			type: 'log',
+			range: [Math.log10(245), Math.log10(134200)],
+			title: 'Average income'
+		},
+
+		yaxis: {
+			range: [20, 90],
+			title: 'Life Expectancy'
+		},
+		hovermode: 'closest'
+	};
+
+
+
+	Plotly.newPlot(graph, traces, layout);
+
+
+	d = data[0]
+
+	Plotly.newPlot(graph_two,
+		[{
+			x: d.years,
+			y: [],//d.income,
+			name: '',//d.name
+
+		},
+
+		{
+			x: d.years,
+			y: [],//d.income,
+			name: '',//d.name
+			xaxis: 'x2',
+			yaxis: 'y2'
+
+		}
+
+
+		],
+		{
+			yaxis: {
+				title: 'Life Expectancy',
+				range: [20, 90]
+			},
+			xaxis: {
+				title: 'Year',
+				domain: [0, 0.45],
+				range: 	d3.extent(d.years)
+			},
+
+			yaxis2: {anchor: 'x2', 
+					type: 'log',
+					title:'Avg Income',
+					range: [Math.log10(245), Math.log10(134200)]},
+			xaxis2: {domain: [0.55, 1], title:'Year',
+					range: 	d3.extent(d.years)}
+		}
+		);
+
+
+	graph.on('plotly_click', function(x) {
+
+		var event_dat = x.points[0];
+
+
+		nation_name = event_dat.data.text[event_dat.pointNumber]
+		nation_data = data.filter(function(n){
+			return n.name == nation_name;})
+
+		console.log(event_dat);
+		Plotly.addTraces(
+			graph_two,
+			[{
+				x: nation_data[0].years,
+				y: nation_data[0].income,
+				name: nation_name + '-income',
+				marker: {
+					color: event_dat.fullData.marker.color
+						},
+				xaxis: 'x2',
+				yaxis: 'y2'
+			},
+
+			{
+
+				x: nation_data[0].years,
+				y: nation_data[0].lifeExpectancy,
+				name: nation_name + '-life',
+				marker: {
+					color: event_dat.fullData.marker.color
+						},
+			}
+			]
+
+
+			
+			)
+	})
+
+	d3.select('#clear_butt').on('click', function(){
+		console.log(graph_two.data)
+		Plotly.deleteTraces(graph_two, d3.range(graph_two.data.length));
+	})
+
+
+	d3.select('#year_slider').on('input', function(){
+          year = parseInt(this.value- 1950);
+          d3.select('#year_text').text(this.value);
+
+
+          var new_traces = []
+
+	for (reg in regions) {
+
+		var reg_data = data.filter(function(nation){
+			return nation.region == regions[reg];
+		})
+
+		new_traces.push({
+
+			x: reg_data.map(function(nation){
+				return nation.income[year];;
+			}),
+
+			y: reg_data.map(function(nation){
+				return nation.lifeExpectancy[year];
+			}),
+
+
+			marker: {
+				size: reg_data.map(function(nation){
+					return nation.population[year];
+				})
+			}
+
+
+		})
+	}
+
+	Plotly.animate(graph, 
+		{
+			data: new_traces,
+
+			layout: {}
+		},
+		{transition: {
+			duration: 200,
+			ease: 'linear'
+		},
+		frame: {
+			duration:200,
+			redraw: false
+		},
+		mode: 'immediate'
+	}
+		);
+
+
+
+	})
+
+
+})
+
+
+
+
+
+
+
+</script>
+
+
+</body>
